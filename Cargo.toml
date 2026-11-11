@@ -1,0 +1,26 @@
+[package]
+name = "mc-transcoder"
+description = "On-demand audio transcoding service for Music Cloud"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/moshms/transcoder"
+
+[dependencies]
+anyhow = "1"
+axum = "0.8"
+blake3 = "1"
+figment = { version = "0.10", features = ["env"] }
+metrics = "0.24"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time", "fs", "io-util", "sync", "process"] }
+tokio-stream = { version = "0.1", features = ["net", "sync"] }
+tonic = "0.14"
+tonic-health = "0.14"
+tracing = "0.1"
+uuid = { version = "1", features = ["v7", "serde"] }
+
+mc-core = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
+mc-proto = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
+mc-storage = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
+mc-telemetry = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0", features = ["metrics"] }
