@@ -20,7 +20,7 @@ tonic-health = "0.14"
 tracing = "0.1"
 uuid = { version = "1", features = ["v7", "serde"] }
 
-mc-core = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
-mc-proto = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
-mc-storage = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0" }
-mc-telemetry = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.0", features = ["metrics"] }
+mc-core = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.1" }
+mc-proto = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.1" }
+mc-storage = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.1" }
+mc-telemetry = { git = "ssh://git@github.com/moshms/core.git", tag = "v0.1.1", features = ["metrics"] }
