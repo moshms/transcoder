@@ -1212,7 +1212,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 [[package]]
 name = "mc-core"
 version = "0.1.0"
-source = "git+ssh://git@github.com/moshms/core.git?tag=v0.1.1#909c3c328420f7c99420d42013a68441a106746a"
+source = "git+ssh://git@github.com/moshms/core.git?tag=v0.2.0#aefadff6eddb2bfac707657176ae3c6d94b8073b"
 dependencies = [
  "serde",
  "thiserror",
@@ -1222,7 +1222,7 @@ dependencies = [
 [[package]]
 name = "mc-proto"
 version = "0.1.0"
-source = "git+ssh://git@github.com/moshms/core.git?tag=v0.1.1#909c3c328420f7c99420d42013a68441a106746a"
+source = "git+ssh://git@github.com/moshms/core.git?tag=v0.2.0#aefadff6eddb2bfac707657176ae3c6d94b8073b"
 dependencies = [
  "prost",
  "protoc-bin-vendored",
@@ -1234,7 +1234,7 @@ dependencies = [
 [[package]]
 name = "mc-storage"
 version = "0.1.0"
-source = "git+ssh://git@github.com/moshms/core.git?tag=v0.1.1#909c3c328420f7c99420d42013a68441a106746a"
+source = "git+ssh://git@github.com/moshms/core.git?tag=v0.2.0#aefadff6eddb2bfac707657176ae3c6d94b8073b"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1251,7 +1251,7 @@ dependencies = [
 [[package]]
 name = "mc-telemetry"
 version = "0.1.0"
-source = "git+ssh://git@github.com/moshms/core.git?tag=v0.1.1#909c3c328420f7c99420d42013a68441a106746a"
+source = "git+ssh://git@github.com/moshms/core.git?tag=v0.2.0#aefadff6eddb2bfac707657176ae3c6d94b8073b"
 dependencies = [
  "async-trait",
  "axum",
