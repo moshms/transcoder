@@ -28,15 +28,22 @@ struct FormatSpec {
 #[derive(Clone)]
 pub struct TranscoderService {
     storage: Arc<LocalStorage>,
+    staging_dir: PathBuf,
     cache_dir: PathBuf,
     cache_max_bytes: u64,
     locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
 }
 
 impl TranscoderService {
-    pub fn new(storage: LocalStorage, cache_dir: PathBuf, cache_max_bytes: u64) -> Self {
+    pub fn new(
+        storage: LocalStorage,
+        staging_dir: PathBuf,
+        cache_dir: PathBuf,
+        cache_max_bytes: u64,
+    ) -> Self {
         Self {
             storage: Arc::new(storage),
+            staging_dir,
             cache_dir,
             cache_max_bytes,
             locks: Arc::new(Mutex::new(HashMap::new())),
@@ -68,12 +75,28 @@ impl TranscoderService {
             0 => 128,
             value => value.clamp(32, 320),
         };
-        let key = Key::new(request.source_key.as_str())
-            .map_err(|error| Status::invalid_argument(error.to_string()))?;
-        let source = self
-            .storage
-            .local_path(&key)
-            .ok_or_else(|| Status::invalid_argument("invalid source key"))?;
+        let (source, source_key) = if request.source_path.is_empty() {
+            let key = Key::new(request.source_key.as_str())
+                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+            let source = self
+                .storage
+                .local_path(&key)
+                .ok_or_else(|| Status::invalid_argument("invalid source key"))?;
+            (source, request.source_key.clone())
+        } else {
+            let staging = tokio::fs::canonicalize(&self.staging_dir)
+                .await
+                .map_err(|_| Status::failed_precondition("staging directory is unavailable"))?;
+            let source = tokio::fs::canonicalize(&request.source_path)
+                .await
+                .map_err(|_| Status::not_found("staged source not found"))?;
+            if !source.starts_with(&staging) {
+                return Err(Status::permission_denied(
+                    "staged source is outside the staging directory",
+                ));
+            }
+            (source, request.source_path.clone())
+        };
         let metadata = tokio::fs::metadata(&source)
             .await
             .map_err(|_| Status::not_found("source file not found"))?;
@@ -82,22 +105,31 @@ impl TranscoderService {
             return Err(Status::not_found("source file not found"));
         }
 
-        let cache_key = cache_key(&source, request.source_key.as_str(), spec, bitrate).await?;
+        let cache_key = cache_key(&source, &source_key, spec, bitrate).await?;
         let cache_path = self
             .cache_dir
             .join(format!("{cache_key}.{}", spec.extension));
         let lock = self.key_lock(&cache_key).await;
         let _guard = lock.lock().await;
 
-        if let Ok(metadata) = tokio::fs::metadata(&cache_path).await {
+        let result = if let Ok(metadata) = tokio::fs::metadata(&cache_path).await {
             if metadata.is_file() && metadata.len() > 0 {
                 metrics::counter!("mc_transcoder_cache_hits_total").increment(1);
-                return stream_file(&cache_path, spec, tx).await;
+                stream_file(&cache_path, spec, tx).await
+            } else {
+                self.transcode_to_cache(&source, &cache_path, spec, bitrate, tx)
+                    .await
             }
+        } else {
+            self.transcode_to_cache(&source, &cache_path, spec, bitrate, tx)
+                .await
+        };
+
+        if request.cleanup_source {
+            let _ = tokio::fs::remove_file(&source).await;
         }
 
-        self.transcode_to_cache(&source, &cache_path, spec, bitrate, tx)
-            .await
+        result
     }
 
     async fn transcode_to_cache(

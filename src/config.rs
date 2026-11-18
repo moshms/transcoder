@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub bind_addr: String,
     pub library_path: String,
+    pub staging_path: String,
     pub cache_dir: String,
     pub cache_max_bytes: u64,
     pub metrics: bool,
@@ -20,6 +21,7 @@ impl Default for Config {
         Self {
             bind_addr: "0.0.0.0:50051".to_owned(),
             library_path: "/library".to_owned(),
+            staging_path: "/staging".to_owned(),
             cache_dir: "/cache".to_owned(),
             cache_max_bytes: 10 * 1024 * 1024 * 1024,
             metrics: false,
