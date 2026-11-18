@@ -38,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         LocalStorage::new(StorageId::new(), &config.library_path).context("open local library")?;
     let service = TranscoderService::new(
         storage,
+        PathBuf::from(&config.staging_path),
         PathBuf::from(&config.cache_dir),
         config.cache_max_bytes,
     );
