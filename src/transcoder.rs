@@ -9,7 +9,7 @@ use mc_proto::transcoder::{TranscodeChunk, TranscodeRequest};
 use mc_storage::{Key, LocalStorage, Storage};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, Semaphore};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 use tracing::{info, warn};
@@ -32,6 +32,7 @@ pub struct TranscoderService {
     cache_dir: PathBuf,
     cache_max_bytes: u64,
     locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
+    limit: Arc<Semaphore>,
 }
 
 impl TranscoderService {
@@ -47,6 +48,11 @@ impl TranscoderService {
             cache_dir,
             cache_max_bytes,
             locks: Arc::new(Mutex::new(HashMap::new())),
+            limit: Arc::new(Semaphore::new(
+                std::thread::available_parallelism()
+                    .map(std::num::NonZeroUsize::get)
+                    .unwrap_or(2),
+            )),
         }
     }
 
@@ -110,7 +116,7 @@ impl TranscoderService {
             .cache_dir
             .join(format!("{cache_key}.{}", spec.extension));
         let lock = self.key_lock(&cache_key).await;
-        let _guard = lock.lock().await;
+        let guard = lock.lock().await;
 
         let result = if let Ok(metadata) = tokio::fs::metadata(&cache_path).await {
             if metadata.is_file() && metadata.len() > 0 {
@@ -124,6 +130,16 @@ impl TranscoderService {
             self.transcode_to_cache(&source, &cache_path, spec, bitrate, tx)
                 .await
         };
+
+        drop(guard);
+        let mut locks = self.locks.lock().await;
+        if locks
+            .get(&cache_key)
+            .is_some_and(|existing| Arc::strong_count(existing) <= 2)
+        {
+            locks.remove(&cache_key);
+        }
+        drop(locks);
 
         if request.cleanup_source {
             let _ = tokio::fs::remove_file(&source).await;
@@ -304,6 +320,12 @@ impl Transcoder for TranscoderService {
         let (tx, rx) = mpsc::channel(8);
         let service = self.clone();
         let request = request.into_inner();
+        let permit = service
+            .limit
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| Status::unavailable("transcoder is shutting down"))?;
         metrics::counter!(
             "mc_transcoder_requests_total",
             "format" => request.format.clone()
@@ -311,6 +333,7 @@ impl Transcoder for TranscoderService {
         .increment(1);
 
         tokio::spawn(async move {
+            let _permit = permit;
             if let Err(error) = service.run_transcode(request, &tx).await {
                 let _ = tx.send(Err(error)).await;
             }
